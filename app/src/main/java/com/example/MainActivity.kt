@@ -22,6 +22,7 @@ import com.example.ui.screens.CreateGroupScreen
 import com.example.ui.screens.GroupVideoCallScreen
 import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.SignInScreen
 import com.example.ui.screens.UserProfileScreen
 import com.example.ui.theme.WorkAIChatTheme
 
@@ -158,7 +159,8 @@ fun WorkAIChatApp(
                 profile = userProfile,
                 onBackClick = { viewModel.navigateTo(Screen.CHAT_LIST) },
                 onSaveProfile = { updated -> viewModel.saveUserProfile(updated) },
-                onSyncNowClick = { viewModel.syncCloudHistory() }
+                onSyncNowClick = { viewModel.syncCloudHistory() },
+                onOpenSignInScreen = { viewModel.navigateTo(Screen.SIGN_IN) }
             )
         }
 
@@ -173,6 +175,18 @@ fun WorkAIChatApp(
                 onOpenNavigatorBot = { viewModel.openSivionNavigator() },
                 onOpenProfileEdit = { viewModel.navigateTo(Screen.USER_PROFILE) },
                 onSyncCloud = { viewModel.syncCloudHistory() }
+            )
+        }
+
+        Screen.SIGN_IN -> {
+            SignInScreen(
+                currentEmail = userProfile.phoneNumber,
+                onBackClick = { viewModel.navigateTo(Screen.USER_PROFILE) },
+                onSignInSuccess = { email ->
+                    viewModel.saveUserProfile(userProfile.copy(isCloudSyncEnabled = true))
+                    viewModel.syncCloudHistory()
+                    viewModel.navigateTo(Screen.USER_PROFILE)
+                }
             )
         }
     }

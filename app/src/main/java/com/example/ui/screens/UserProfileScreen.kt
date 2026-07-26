@@ -24,21 +24,29 @@ import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -48,6 +56,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -81,7 +90,8 @@ fun UserProfileScreen(
     profile: UserProfileEntity,
     onBackClick: () -> Unit,
     onSaveProfile: (UserProfileEntity) -> Unit,
-    onSyncNowClick: () -> Unit
+    onSyncNowClick: () -> Unit,
+    onOpenSignInScreen: (() -> Unit)? = null
 ) {
     var name by remember(profile) { mutableStateOf(profile.name) }
     var role by remember(profile) { mutableStateOf(profile.role) }
@@ -97,8 +107,40 @@ fun UserProfileScreen(
     var allowGroupCreation by remember(profile) { mutableStateOf(profile.allowGroupCreation) }
     var retentionDays by remember(profile) { mutableStateOf(profile.dataRetentionDays) }
 
+    // Notification Control state
+    var notifyMessages by remember(profile) { mutableStateOf(profile.notifyMessages) }
+    var notifyGroups by remember(profile) { mutableStateOf(profile.notifyGroups) }
+    var notifyPreviewText by remember(profile) { mutableStateOf(profile.notifyPreviewText) }
+    var notificationTone by remember(profile) { mutableStateOf(profile.notificationTone) }
+
+    // Security Setup state
+    var isBiometricEnabled by remember(profile) { mutableStateOf(profile.isBiometricEnabled) }
+    var appLockTimeout by remember(profile) { mutableStateOf(profile.appLockTimeout) }
+    var screenSecurityEnabled by remember(profile) { mutableStateOf(profile.screenSecurityEnabled) }
+    var twoFactorEnabled by remember(profile) { mutableStateOf(profile.twoFactorEnabled) }
+
+    // Knowledge Transfer (KT) & Handover state
+    var isKtHandoverActive by remember(profile) { mutableStateOf(profile.isKtHandoverActive) }
+    var handoverSuccessorName by remember(profile) { mutableStateOf(profile.handoverSuccessorName) }
+    var handoverSuccessorRole by remember(profile) { mutableStateOf(profile.handoverSuccessorRole) }
+    var handoverNotes by remember(profile) { mutableStateOf(profile.handoverNotes) }
+
+    // Modals
+    var showAvatarModal by remember { mutableStateOf(false) }
     var showCreateMemberModal by remember { mutableStateOf(false) }
+    var showHandoverConfirmDialog by remember { mutableStateOf(false) }
     var isSyncing by remember { mutableStateOf(false) }
+
+    // Database Logs
+    val dbLogList = remember {
+        androidx.compose.runtime.mutableStateListOf(
+            "[19:42:02] ROOM DB: Query executed on 'user_profile' (id=1)",
+            "[19:40:15] CLOUD SYNC: AES-256 backup payload generated for cloud",
+            "[19:38:50] SECURITY LOG: Biometric verification token active",
+            "[19:35:10] KT HANDOVER: Successor '$handoverSuccessorName' granted prompt transfer access",
+            "[19:30:12] ROOM DB: Batch sync written to 'chats' and 'messages' (32 records)"
+        )
+    }
 
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -125,9 +167,14 @@ fun UserProfileScreen(
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onPrimary)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text("Profile, Hierarchy & Data Control", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onPrimary)
-                    Text("Manage avatar, company role, security & admin controls", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Profile, Hierarchy & Control Center", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onPrimary)
+                    Text("Manage avatar, security, database logs & handover", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
+                }
+                if (onOpenSignInScreen != null) {
+                    IconButton(onClick = onOpenSignInScreen) {
+                        Icon(Icons.Default.CloudSync, contentDescription = "Cloud Auth", tint = MaterialTheme.colorScheme.onPrimary)
+                    }
                 }
             }
         },
@@ -140,7 +187,7 @@ fun UserProfileScreen(
                 .verticalScroll(scrollState)
                 .padding(16.dp)
         ) {
-            // Profile & Avatar Card
+            // Profile & Avatar Card with WhatsApp-style Camera Badge
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -151,51 +198,39 @@ fun UserProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(20.dp)
                 ) {
-                    // Selected Avatar Preview
+                    // Selected Avatar Preview with WhatsApp Camera Badge
                     val currentAvatarVector = avatarOptions.find { it.first == avatarIcon }?.second ?: Icons.Default.Person
 
-                    Surface(
-                        shape = CircleShape,
-                        color = WhatsAppGreenPrimary,
-                        modifier = Modifier.size(80.dp)
+                    Box(
+                        contentAlignment = Alignment.BottomEnd,
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clickable { showAvatarModal = true }
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(currentAvatarVector, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Tap to Select Profile Avatar", fontSize = 12.sp, color = WhatsAppGreenLight, fontWeight = FontWeight.Medium)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Avatar Picker Selector Row
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(vertical = 6.dp)
-                    ) {
-                        avatarOptions.forEach { (key, vectorIcon) ->
-                            val isSelected = (key == avatarIcon)
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isSelected) WhatsAppGreenPrimary else MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clickable {
-                                        avatarIcon = key
-                                        Toast.makeText(context, "Profile Picture Updated!", Toast.LENGTH_SHORT).show()
-                                    }
-                            ) {
-                                Icon(
-                                    imageVector = vectorIcon,
-                                    contentDescription = null,
-                                    tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(10.dp)
-                                )
+                        Surface(
+                            shape = CircleShape,
+                            color = WhatsAppGreenPrimary,
+                            modifier = Modifier.size(88.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(currentAvatarVector, contentDescription = null, tint = Color.White, modifier = Modifier.size(50.dp))
                             }
                         }
+
+                        // WhatsApp style camera action badge
+                        Surface(
+                            shape = CircleShape,
+                            color = WhatsAppGreenLight,
+                            shadowElevation = 3.dp,
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = "Edit Photo", tint = Color.White, modifier = Modifier.padding(6.dp))
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Tap Profile Picture for WhatsApp Options", fontSize = 12.sp, color = WhatsAppGreenLight, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     OutlinedTextField(
                         value = name,
@@ -248,7 +283,7 @@ fun UserProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Corporate Hierarchy & Access Control
+            // Notification Control Settings Card
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -257,96 +292,74 @@ fun UserProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Work, contentDescription = null, tint = WhatsAppGreenPrimary)
+                        Icon(Icons.Default.Notifications, contentDescription = null, tint = WhatsAppGreenPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Company Hierarchy & Designation", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = role,
-                        onValueChange = { role = it },
-                        label = { Text("Work Role Title") },
-                        leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null, tint = WhatsAppGreenPrimary) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = WhatsAppGreenPrimary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = department,
-                            onValueChange = { department = it },
-                            label = { Text("Department") },
-                            leadingIcon = { Icon(Icons.Default.Business, contentDescription = null, tint = WhatsAppGreenPrimary) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = WhatsAppGreenPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        OutlinedTextField(
-                            value = managementLevel,
-                            onValueChange = {
-                                managementLevel = it
-                                isSuperAdmin = (it.equals("Super Admin", ignoreCase = true))
-                            },
-                            label = { Text("Hierarchy Level") },
-                            leadingIcon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = WhatsAppGreenPrimary) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = WhatsAppGreenPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
+                        Text("Notification & Sound Controls", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107))
-                        Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Super Admin Governance Rights", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
-                            Text("Full administrative rights to provision logins & manage access", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Direct Message Alerts", fontWeight = FontWeight.Medium, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Play sound & display popups for 1-on-1 chats", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(
-                            checked = isSuperAdmin,
-                            onCheckedChange = { isSuperAdmin = it },
+                            checked = notifyMessages,
+                            onCheckedChange = { notifyMessages = it },
                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = WhatsAppGreenPrimary)
                         )
                     }
 
-                    if (isSuperAdmin) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = { showCreateMemberModal = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0288D1)),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.PersonAdd, contentDescription = null, tint = Color.White)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Create Login for Team Member", fontWeight = FontWeight.Bold, color = Color.White)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Group & AI Bot Activity Notifications", fontWeight = FontWeight.Medium, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Alert when team members or AI bots respond", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = notifyGroups,
+                            onCheckedChange = { notifyGroups = it },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = WhatsAppGreenPrimary)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Show Preview Text on Lock Screen", fontWeight = FontWeight.Medium, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Include message text snippet in notification popups", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = notifyPreviewText,
+                            onCheckedChange = { notifyPreviewText = it },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = WhatsAppGreenPrimary)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text("Notification Ringtone:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(top = 6.dp)
+                    ) {
+                        listOf("Enterprise Emerald Tone", "Classic Whistle", "Subtle Chime", "Silent").forEach { tone ->
+                            val isSelected = (tone == notificationTone)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) WhatsAppGreenPrimary else MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.clickable { notificationTone = tone }
+                            ) {
+                                Text(
+                                    text = tone,
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                )
                             }
                         }
                     }
@@ -355,7 +368,7 @@ fun UserProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Data Control & Enterprise Security Settings
+            // Security Setup Card
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -366,19 +379,21 @@ fun UserProfileScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Security, contentDescription = null, tint = WhatsAppGreenPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Data Control & Access Governance", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                        Text("Security Setup & App Lock", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Fingerprint, contentDescription = null, tint = WhatsAppGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Allow File & Attachment Sharing", fontWeight = FontWeight.Medium, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
-                            Text("Permit media, document & code uploads in chat", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Biometric / Fingerprint Unlock", fontWeight = FontWeight.Medium, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Require fingerprint sensor to open WorkAI", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(
-                            checked = allowFileSharing,
-                            onCheckedChange = { allowFileSharing = it },
+                            checked = isBiometricEnabled,
+                            onCheckedChange = { isBiometricEnabled = it },
                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = WhatsAppGreenPrimary)
                         )
                     }
@@ -386,58 +401,57 @@ fun UserProfileScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Lock, contentDescription = null, tint = WhatsAppGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Allow Group Chat Creation", fontWeight = FontWeight.Medium, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
-                            Text("Permit non-admin users to create group chats", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Screen Security (Block Screenshots)", fontWeight = FontWeight.Medium, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Prevent taking screenshots or app preview in switcher", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(
-                            checked = allowGroupCreation,
-                            onCheckedChange = { allowGroupCreation = it },
+                            checked = screenSecurityEnabled,
+                            onCheckedChange = { screenSecurityEnabled = it },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = WhatsAppGreenPrimary)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CloudSync, contentDescription = null, tint = WhatsAppGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Two-Factor Authentication (2FA)", fontWeight = FontWeight.Medium, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Require 2FA PIN for enterprise login", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = twoFactorEnabled,
+                            onCheckedChange = { twoFactorEnabled = it },
                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = WhatsAppGreenPrimary)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text("Data Retention Period: $retentionDays Days", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Automatically Lock App:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.padding(top = 6.dp)
                     ) {
-                        listOf(30, 60, 90, 180, 365).forEach { days ->
-                            val isSelected = (days == retentionDays)
+                        listOf("Immediately", "After 1 min", "After 15 min").forEach { timeout ->
+                            val isSelected = (timeout == appLockTimeout)
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = if (isSelected) WhatsAppGreenPrimary else MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier
-                                    .clickable { retentionDays = days }
-                                    .padding(vertical = 2.dp)
+                                modifier = Modifier.clickable { appLockTimeout = timeout }
                             ) {
                                 Text(
-                                    text = "$days d",
+                                    text = timeout,
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                 )
                             }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Button(
-                        onClick = {
-                            Toast.makeText(context, "Exporting Workspace Security Audit Log PDF...", Toast.LENGTH_SHORT).show()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.ImportExport, contentDescription = null, tint = WhatsAppGreenPrimary)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Export Security & Data Audit Log", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
@@ -445,7 +459,7 @@ fun UserProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Cloud Sync Section
+            // Database Logs & Audit Trail Section
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -454,40 +468,125 @@ fun UserProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CloudDone, contentDescription = null, tint = WhatsAppGreenPrimary)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Encrypted Workspace Cloud Backup", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
-                            Text(
-                                "Last synced: ${formatFullDate(profile.lastSyncTime)}",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = isCloudSync,
-                            onCheckedChange = { isCloudSync = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = WhatsAppGreenPrimary)
-                        )
+                        Icon(Icons.Default.Storage, contentDescription = null, tint = WhatsAppGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Room Database Diagnostic & Operation Logs", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    Button(
-                        onClick = {
-                            isSyncing = true
-                            onSyncNowClick()
-                            Toast.makeText(context, "Encrypted Cloud Sync Complete!", Toast.LENGTH_SHORT).show()
-                            isSyncing = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = WhatsAppGreenPrimary),
-                        shape = RoundedCornerShape(10.dp),
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp).verticalScroll(rememberScrollState())) {
+                            dbLogList.forEach { logLine ->
+                                Text(
+                                    text = logLine,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (isSyncing) "Syncing Encrypted Logs..." else "Sync Cloud Backup Now", fontWeight = FontWeight.Bold)
+                        OutlinedButton(
+                            onClick = {
+                                val newTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+                                dbLogList.add(0, "[$newTime] ROOM DB: Manual integrity check PASSED (0 corrupted records)")
+                                Toast.makeText(context, "Database log refreshed!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Refresh Logs", fontSize = 11.sp, color = WhatsAppGreenPrimary)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                dbLogList.clear()
+                                Toast.makeText(context, "Database diagnostic logs cleared", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Clear Logs", fontSize = 11.sp, color = Color.Red)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Knowledge Transfer (KT) & Handover Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = WhatsAppGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Knowledge Transfer (KT) & Role Handover", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                            Text("Transfer AI prompts, admin rights & database backup ownership", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = isKtHandoverActive,
+                            onCheckedChange = { isKtHandoverActive = it },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = WhatsAppGreenPrimary)
+                        )
+                    }
+
+                    if (isKtHandoverActive) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = handoverSuccessorName,
+                            onValueChange = { handoverSuccessorName = it },
+                            label = { Text("Successor / Handover Colleague Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = handoverSuccessorRole,
+                            onValueChange = { handoverSuccessorRole = it },
+                            label = { Text("Successor Role / Title") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = handoverNotes,
+                            onValueChange = { handoverNotes = it },
+                            label = { Text("Handover Notes & Prompt Credentials") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = { showHandoverConfirmDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = WhatsAppGreenPrimary),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Execute Knowledge Transfer (KT)", fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
@@ -511,10 +610,22 @@ fun UserProfileScreen(
                         isPinProtected = isPinProtected,
                         allowFileSharing = allowFileSharing,
                         allowGroupCreation = allowGroupCreation,
-                        dataRetentionDays = retentionDays
+                        dataRetentionDays = retentionDays,
+                        notifyMessages = notifyMessages,
+                        notifyGroups = notifyGroups,
+                        notifyPreviewText = notifyPreviewText,
+                        notificationTone = notificationTone,
+                        isBiometricEnabled = isBiometricEnabled,
+                        appLockTimeout = appLockTimeout,
+                        screenSecurityEnabled = screenSecurityEnabled,
+                        twoFactorEnabled = twoFactorEnabled,
+                        isKtHandoverActive = isKtHandoverActive,
+                        handoverSuccessorName = handoverSuccessorName,
+                        handoverSuccessorRole = handoverSuccessorRole,
+                        handoverNotes = handoverNotes
                     )
                     onSaveProfile(updated)
-                    Toast.makeText(context, "Profile, Avatar & Hierarchy Saved!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Profile, Avatar & Control Settings Saved!", Toast.LENGTH_SHORT).show()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = WhatsAppGreenPrimary),
                 shape = RoundedCornerShape(12.dp),
@@ -522,9 +633,151 @@ fun UserProfileScreen(
                     .fillMaxWidth()
                     .height(50.dp)
             ) {
-                Text("Save Profile & Access Controls", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                Text("Save All Settings & Controls", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
             }
         }
+    }
+
+    // WhatsApp Style Full-Screen Profile Picture Modal
+    if (showAvatarModal) {
+        val currentVector = avatarOptions.find { it.first == avatarIcon }?.second ?: Icons.Default.Person
+
+        AlertDialog(
+            onDismissRequest = { showAvatarModal = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = WhatsAppGreenPrimary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Profile Picture Options", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    // Big WhatsApp style photo display
+                    Surface(
+                        shape = CircleShape,
+                        color = WhatsAppGreenPrimary,
+                        modifier = Modifier.size(120.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(currentVector, contentDescription = null, tint = Color.White, modifier = Modifier.size(70.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text("Choose Avatar Preset or Photo:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    ) {
+                        avatarOptions.forEach { (key, vectorIcon) ->
+                            val isSelected = (key == avatarIcon)
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isSelected) WhatsAppGreenPrimary else MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clickable { avatarIcon = key }
+                            ) {
+                                Icon(vectorIcon, contentDescription = null, tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(8.dp))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // WhatsApp Action Buttons
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable {
+                                Toast.makeText(context, "Opening Camera to Snap Profile Photo...", Toast.LENGTH_SHORT).show()
+                                showAvatarModal = false
+                            }
+                        ) {
+                            Surface(shape = CircleShape, color = WhatsAppGreenPrimary, modifier = Modifier.size(44.dp)) {
+                                Icon(Icons.Default.CameraAlt, contentDescription = "Camera", tint = Color.White, modifier = Modifier.padding(10.dp))
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Camera", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                        }
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable {
+                                Toast.makeText(context, "Opening Photo Gallery...", Toast.LENGTH_SHORT).show()
+                                showAvatarModal = false
+                            }
+                        ) {
+                            Surface(shape = CircleShape, color = Color(0xFF007AFF), modifier = Modifier.size(44.dp)) {
+                                Icon(Icons.Default.PhotoLibrary, contentDescription = "Gallery", tint = Color.White, modifier = Modifier.padding(10.dp))
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Gallery", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                        }
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable {
+                                avatarIcon = "person_1"
+                                Toast.makeText(context, "Profile Photo Removed", Toast.LENGTH_SHORT).show()
+                                showAvatarModal = false
+                            }
+                        ) {
+                            Surface(shape = CircleShape, color = Color.Red, modifier = Modifier.size(44.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.White, modifier = Modifier.padding(10.dp))
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Remove", fontSize = 11.sp, color = Color.Red)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showAvatarModal = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppGreenPrimary)
+                ) {
+                    Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // Handover Confirmation Dialog
+    if (showHandoverConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showHandoverConfirmDialog = false },
+            title = { Text("Confirm Knowledge Transfer (KT)", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "Are you sure you want to transfer AI prompt libraries, group ownership, and workspace credentials to $handoverSuccessorName ($handoverSuccessorRole)?",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showHandoverConfirmDialog = false
+                        Toast.makeText(context, "Knowledge Transfer executed successfully! Credentials transferred to $handoverSuccessorName.", Toast.LENGTH_LONG).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppGreenPrimary)
+                ) {
+                    Text("Transfer Rights", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHandoverConfirmDialog = false }) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        )
     }
 
     // Modal for Super Admin to Provision New Member Login

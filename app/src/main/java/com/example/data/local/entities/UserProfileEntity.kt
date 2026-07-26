@@ -28,6 +28,21 @@ data class UserProfileEntity(
     val totalVoiceNotes: Int = 15,
     val dataRetentionDays: Int = 90,
     val allowFileSharing: Boolean = true,
-    val allowGroupCreation: Boolean = true
+    val allowGroupCreation: Boolean = true,
+    // Notification controls
+    val notifyMessages: Boolean = true,
+    val notifyGroups: Boolean = true,
+    val notifyPreviewText: Boolean = true,
+    val notificationTone: String = "Enterprise Emerald Tone",
+    // Security setup
+    val isBiometricEnabled: Boolean = false,
+    val appLockTimeout: String = "Immediately",
+    val screenSecurityEnabled: Boolean = false,
+    val twoFactorEnabled: Boolean = true,
+    // Knowledge Transfer (KT) & Handover
+    val isKtHandoverActive: Boolean = false,
+    val handoverSuccessorName: String = "Sarah Chen",
+    val handoverSuccessorRole: String = "Director of Product Management",
+    val handoverNotes: String = "Handing over active AI prompts, group admin rights, and sprint roadmap logs."
 )
 

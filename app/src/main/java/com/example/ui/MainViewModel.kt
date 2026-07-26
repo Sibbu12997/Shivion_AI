@@ -41,7 +41,8 @@ enum class Screen {
     ADD_AI_BOT,
     GROUP_VIDEO_CALL,
     USER_PROFILE,
-    SETTINGS
+    SETTINGS,
+    SIGN_IN
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
