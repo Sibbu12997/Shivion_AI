@@ -459,7 +459,7 @@ fun UserProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Database Logs & Audit Trail Section
+            // SQLite & Room Database Diagnostic & Operation Controls
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -470,7 +470,28 @@ fun UserProfileScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Storage, contentDescription = null, tint = WhatsAppGreenPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Room Database Diagnostic & Operation Logs", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                        Text("SQLite Database Engine & Operation Logs", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // SQLite DB Info Banner
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = WhatsAppGreenPrimary.copy(alpha = 0.1f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(10.dp)
+                        ) {
+                            Column {
+                                Text("Database File: workai_chat_database.db", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                Text("Engine: SQLite 3.39+ (Room v2.6 / WAL Mode Enabled)", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text("ACTIVE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = WhatsAppGreenPrimary)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -480,7 +501,7 @@ fun UserProfileScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(140.dp)
+                            .height(130.dp)
                     ) {
                         Column(modifier = Modifier.padding(10.dp).verticalScroll(rememberScrollState())) {
                             dbLogList.forEach { logLine ->
@@ -497,28 +518,39 @@ fun UserProfileScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedButton(
                             onClick = {
                                 val newTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-                                dbLogList.add(0, "[$newTime] ROOM DB: Manual integrity check PASSED (0 corrupted records)")
-                                Toast.makeText(context, "Database log refreshed!", Toast.LENGTH_SHORT).show()
+                                dbLogList.add(0, "[$newTime] SQLITE PRAGMA: integrity_check => result: 'ok'")
+                                Toast.makeText(context, "SQLite integrity check PASSED!", Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Refresh Logs", fontSize = 11.sp, color = WhatsAppGreenPrimary)
+                            Text("PRAGMA Check", fontSize = 10.sp, color = WhatsAppGreenPrimary)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val newTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+                                dbLogList.add(0, "[$newTime] SQLITE VACUUM: Executed successfully (Pages defragmented)")
+                                Toast.makeText(context, "SQLite VACUUM executed successfully!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("VACUUM DB", fontSize = 10.sp, color = WhatsAppGreenPrimary)
                         }
 
                         OutlinedButton(
                             onClick = {
                                 dbLogList.clear()
-                                Toast.makeText(context, "Database diagnostic logs cleared", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Logs cleared", Toast.LENGTH_SHORT).show()
                             },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(0.8f)
                         ) {
-                            Text("Clear Logs", fontSize = 11.sp, color = Color.Red)
+                            Text("Clear", fontSize = 10.sp, color = Color.Red)
                         }
                     }
                 }

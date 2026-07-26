@@ -62,9 +62,17 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Poll
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FolderZip
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.TextButton
 import com.example.ui.components.TypingIndicatorBubble
 import com.example.ui.components.WhatsAppEmojiKeyboard
@@ -85,6 +93,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -634,121 +643,448 @@ fun ChatDetailScreen(
             }
         }
 
-        // Killer WhatsApp Style Attachment Sheet Modal
+        // Killer WhatsApp Style Attachment Sheet Modal with Gallery & Document Composer
         if (showAttachmentSheet) {
+            var attachmentSheetTab by remember { mutableStateOf("ALL") } // "ALL", "GALLERY", "DOCUMENTS"
+            val selectedGalleryItemIds = remember { mutableStateListOf<String>() }
+            val selectedDocumentIds = remember { mutableStateListOf<String>() }
+            var attachmentCaption by remember { mutableStateOf("") }
+
+            val galleryPhotos = remember {
+                listOf(
+                    GalleryMediaItem("img_1", "UI Mockup v3", "UI_Mockup_v3.png", "2.4 MB", "1080x2400", Color(0xFF3F51B5)),
+                    GalleryMediaItem("img_2", "Architecture", "Architecture_Diagram.png", "3.2 MB", "1920x1080", Color(0xFF009688)),
+                    GalleryMediaItem("img_3", "Database ERD", "Database_ERD.png", "1.8 MB", "1440x900", Color(0xFF00695C)),
+                    GalleryMediaItem("img_4", "Whiteboard", "Sprint_Whiteboard.jpg", "4.1 MB", "2048x1536", Color(0xFFFF8F00)),
+                    GalleryMediaItem("img_5", "Palette Specs", "Design_Palette.png", "950 KB", "1200x1200", Color(0xFF7B1FA2)),
+                    GalleryMediaItem("img_6", "System Trace", "System_Logs_Trace.png", "1.5 MB", "1920x1200", Color(0xFF37474F)),
+                    GalleryMediaItem("img_7", "User Flow", "User_Flow_Map.png", "2.8 MB", "1600x1200", Color(0xFF1976D2)),
+                    GalleryMediaItem("img_8", "AI Workflow", "AI_Pipeline_Graph.png", "1.2 MB", "1280x720", Color(0xFFE64A19)),
+                    GalleryMediaItem("img_9", "Roadmap Q3", "Release_Roadmap_Q3.png", "3.7 MB", "2560x1440", Color(0xFF2E7D32))
+                )
+            }
+
+            val docFiles = remember {
+                listOf(
+                    DocumentAttachmentItem("doc_1", "Project Requirements", "Project_Requirements_v2.pdf", "2.4 MB", "PDF", "Updated 2h ago", Color(0xFFE53935)),
+                    DocumentAttachmentItem("doc_2", "Sprint Planning Q3", "Sprint_Planning_Q3.docx", "1.1 MB", "DOCX", "Yesterday", Color(0xFF1E88E5)),
+                    DocumentAttachmentItem("doc_3", "Database Schema", "Database_Schema_Migration.sql", "450 KB", "SQL", "Jul 24", Color(0xFF43A047)),
+                    DocumentAttachmentItem("doc_4", "WorkAI Source Bundle", "WorkAI_Android_Source.zip", "14.2 MB", "ZIP", "Jul 22", Color(0xFF8E24AA)),
+                    DocumentAttachmentItem("doc_5", "Financial Budget 2026", "Financial_Budget_2026.xlsx", "3.8 MB", "XLSX", "Jul 20", Color(0xFF2E7D32))
+                )
+            }
+
             ModalBottomSheet(
                 onDismissRequest = { showAttachmentSheet = false },
                 sheetState = rememberModalBottomSheetState(),
                 containerColor = WhatsAppDarkHeader
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text("Attach File or Share Workspace Asset", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Row 1: Document, Camera, Gallery, Audio, Location
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    // Header Bar with Title
                     Row(
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                     ) {
-                        AttachmentOptionItem(
-                            title = "Document",
-                            icon = Icons.Default.InsertDriveFile,
-                            color = Color(0xFF7F66FF),
-                            onClick = {
-                                showAttachmentSheet = false
-                                onSendMessage("Project_Requirements_v2.pdf", "FILE", 0, "Project_Requirements_v2.pdf", "2.4 MB")
-                            }
-                        )
-                        AttachmentOptionItem(
-                            title = "Camera",
-                            icon = Icons.Default.CameraAlt,
-                            color = Color(0xFFEC407A),
-                            onClick = {
-                                showAttachmentSheet = false
-                                onSendMessage("Photo_Snap_2026.jpg", "IMAGE", 0, "Photo_Snap_2026.jpg", "1.8 MB")
-                            }
-                        )
-                        AttachmentOptionItem(
-                            title = "Gallery",
-                            icon = Icons.Default.PhotoLibrary,
-                            color = Color(0xFFAB47BC),
-                            onClick = {
-                                showAttachmentSheet = false
-                                onSendMessage("Architecture_Diagram.png", "IMAGE", 0, "Architecture_Diagram.png", "3.2 MB")
-                            }
-                        )
-                        AttachmentOptionItem(
-                            title = "Audio",
-                            icon = Icons.Default.Audiotrack,
-                            color = Color(0xFFFF7043),
-                            onClick = {
-                                showAttachmentSheet = false
-                                isRecordingVoice = true
-                            }
-                        )
-                        AttachmentOptionItem(
-                            title = "Location",
-                            icon = Icons.Default.LocationOn,
-                            color = Color(0xFF26A69A),
-                            onClick = {
-                                showAttachmentSheet = false
-                                onSendMessage("📍 Headquarters (37.7749° N, 122.4194° W)", "TEXT", 0, null, null)
-                            }
-                        )
+                        Column {
+                            Text(
+                                text = "WhatsApp Attachment & Gallery",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Select photos, documents or quick assets",
+                                fontSize = 11.sp,
+                                color = Color(0xFF8696A0)
+                            )
+                        }
+
+                        IconButton(onClick = { showAttachmentSheet = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                        }
                     }
 
-                    // Row 2: Contact, Poll, Code, AI Canvas, Workspace Zip
+                    // Tab Selector Pills (Quick Menu | Recent Gallery | Documents)
                     Row(
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        modifier = Modifier.fillMaxWidth()
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp)
                     ) {
-                        AttachmentOptionItem(
-                            title = "Contact",
-                            icon = Icons.Default.ContactPhone,
-                            color = Color(0xFF00ACC1),
-                            onClick = {
-                                showAttachmentSheet = false
-                                onSendMessage("👤 Sarah Chen (Director of Product) - +1 555-019-2834", "TEXT", 0, null, null)
+                        listOf(
+                            "ALL" to "Quick Menu",
+                            "GALLERY" to "Gallery (${galleryPhotos.size})",
+                            "DOCUMENTS" to "Documents (${docFiles.size})"
+                        ).forEach { (tabKey, label) ->
+                            val isSelected = (attachmentSheetTab == tabKey)
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (isSelected) WhatsAppGreenPrimary else Color(0xFF202C33),
+                                modifier = Modifier.clickable { attachmentSheetTab = tabKey }
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) Color.White else Color(0xFF8696A0),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
                             }
-                        )
-                        AttachmentOptionItem(
-                            title = "Poll",
-                            icon = Icons.Default.Poll,
-                            color = Color(0xFF00897B),
-                            onClick = {
-                                showAttachmentSheet = false
-                                onSendMessage("📊 Team Poll: Should we target Q3 release for Gemini 3.5 AI integration? Options: [1] Yes, Q3 [2] No, Q4", "TEXT", 0, null, null)
-                            }
-                        )
-                        AttachmentOptionItem(
-                            title = "Code",
-                            icon = Icons.Default.Code,
-                            color = Color(0xFF3F51B5),
-                            onClick = {
-                                showAttachmentSheet = false
-                                isCodeModalOpen = true
-                            }
-                        )
-                        AttachmentOptionItem(
-                            title = "AI Canvas",
-                            icon = Icons.Default.AutoAwesome,
-                            color = Color(0xFFFFB300),
-                            onClick = {
-                                showAttachmentSheet = false
-                                inputText = "🎨 Generate UI diagram for mobile dashboard with Jetpack Compose..."
-                            }
-                        )
-                        AttachmentOptionItem(
-                            title = "Zip File",
-                            icon = Icons.Default.AttachFile,
-                            color = Color(0xFF5C6BC0),
-                            onClick = {
-                                showAttachmentSheet = false
-                                onSendMessage("WorkAI_Android_Source.zip", "FILE", 0, "WorkAI_Android_Source.zip", "14.2 MB")
-                            }
-                        )
+                        }
                     }
-                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Content Based on Tab
+                    if (attachmentSheetTab == "ALL") {
+                        // 8-Option Quick Grid
+                        Text("QUICK ATTACH", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WhatsAppGreenLight, modifier = Modifier.padding(bottom = 10.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                        ) {
+                            AttachmentOptionItem(
+                                title = "Document",
+                                icon = Icons.Default.InsertDriveFile,
+                                color = Color(0xFF7F66FF),
+                                onClick = { attachmentSheetTab = "DOCUMENTS" }
+                            )
+                            AttachmentOptionItem(
+                                title = "Camera",
+                                icon = Icons.Default.CameraAlt,
+                                color = Color(0xFFEC407A),
+                                onClick = {
+                                    showAttachmentSheet = false
+                                    onSendMessage("Photo_Snap_2026.jpg", "IMAGE", 0, "Photo_Snap_2026.jpg", "1.8 MB")
+                                    Toast.makeText(context, "Captured snapshot & attached!", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                            AttachmentOptionItem(
+                                title = "Gallery",
+                                icon = Icons.Default.PhotoLibrary,
+                                color = Color(0xFFAB47BC),
+                                onClick = { attachmentSheetTab = "GALLERY" }
+                            )
+                            AttachmentOptionItem(
+                                title = "Audio",
+                                icon = Icons.Default.Audiotrack,
+                                color = Color(0xFFFF7043),
+                                onClick = {
+                                    showAttachmentSheet = false
+                                    isRecordingVoice = true
+                                }
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)
+                        ) {
+                            AttachmentOptionItem(
+                                title = "Location",
+                                icon = Icons.Default.LocationOn,
+                                color = Color(0xFF26A69A),
+                                onClick = {
+                                    showAttachmentSheet = false
+                                    onSendMessage("📍 Headquarters (37.7749° N, 122.4194° W)", "TEXT", 0, null, null)
+                                }
+                            )
+                            AttachmentOptionItem(
+                                title = "Contact",
+                                icon = Icons.Default.ContactPhone,
+                                color = Color(0xFF00ACC1),
+                                onClick = {
+                                    showAttachmentSheet = false
+                                    onSendMessage("👤 Sarah Chen (Director of Product) - +1 555-019-2834", "TEXT", 0, null, null)
+                                }
+                            )
+                            AttachmentOptionItem(
+                                title = "Poll",
+                                icon = Icons.Default.Poll,
+                                color = Color(0xFF00897B),
+                                onClick = {
+                                    showAttachmentSheet = false
+                                    onSendMessage("📊 Team Poll: Should we target Q3 release for Gemini 3.5 AI integration? Options: [1] Yes, Q3 [2] No, Q4", "TEXT", 0, null, null)
+                                }
+                            )
+                            AttachmentOptionItem(
+                                title = "Code",
+                                icon = Icons.Default.Code,
+                                color = Color(0xFF3F51B5),
+                                onClick = {
+                                    showAttachmentSheet = false
+                                    isCodeModalOpen = true
+                                }
+                            )
+                        }
+                    }
+
+                    // Gallery Grid Section
+                    if (attachmentSheetTab == "ALL" || attachmentSheetTab == "GALLERY") {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
+                        ) {
+                            Text("RECENT GALLERY PHOTOS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WhatsAppGreenLight)
+                            if (attachmentSheetTab == "ALL") {
+                                Text(
+                                    text = "View All (${galleryPhotos.size})",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF00A884),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clickable { attachmentSheetTab = "GALLERY" }
+                                )
+                            }
+                        }
+
+                        val displayPhotos = if (attachmentSheetTab == "ALL") galleryPhotos.take(6) else galleryPhotos
+                        val photoChunks = displayPhotos.chunked(3)
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            photoChunks.forEach { chunk ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    chunk.forEach { mediaItem ->
+                                        val isSelected = selectedGalleryItemIds.contains(mediaItem.id)
+                                        val selectedIndex = selectedGalleryItemIds.indexOf(mediaItem.id) + 1
+
+                                        Card(
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = CardDefaults.cardColors(containerColor = mediaItem.primaryColor),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(96.dp)
+                                                .clickable {
+                                                    if (isSelected) {
+                                                        selectedGalleryItemIds.remove(mediaItem.id)
+                                                    } else {
+                                                        selectedGalleryItemIds.add(mediaItem.id)
+                                                    }
+                                                }
+                                        ) {
+                                            Box(modifier = Modifier.fillMaxSize()) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Image,
+                                                    contentDescription = null,
+                                                    tint = Color.White.copy(alpha = 0.35f),
+                                                    modifier = Modifier.size(42.dp).align(Alignment.Center)
+                                                )
+
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = if (isSelected) WhatsAppGreenPrimary else Color.Black.copy(alpha = 0.4f),
+                                                    modifier = Modifier
+                                                        .padding(6.dp)
+                                                        .size(22.dp)
+                                                        .align(Alignment.TopEnd)
+                                                ) {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        if (isSelected) {
+                                                            Text(
+                                                                text = "$selectedIndex",
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color.White
+                                                            )
+                                                        } else {
+                                                            Icon(
+                                                                Icons.Default.RadioButtonUnchecked,
+                                                                contentDescription = null,
+                                                                tint = Color.White.copy(alpha = 0.7f),
+                                                                modifier = Modifier.size(12.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                Column(
+                                                    modifier = Modifier
+                                                        .align(Alignment.BottomStart)
+                                                        .fillMaxWidth()
+                                                        .background(Color.Black.copy(alpha = 0.5f))
+                                                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                                                ) {
+                                                    Text(
+                                                        text = mediaItem.title,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.White,
+                                                        maxLines = 1
+                                                    )
+                                                    Text(
+                                                        text = "${mediaItem.fileSize} • ${mediaItem.dimensions}",
+                                                        fontSize = 8.sp,
+                                                        color = Color.White.copy(alpha = 0.8f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (chunk.size < 3) {
+                                        repeat(3 - chunk.size) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Documents List Section
+                    if (attachmentSheetTab == "ALL" || attachmentSheetTab == "DOCUMENTS") {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
+                        ) {
+                            Text("RECENT DOCUMENTS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WhatsAppGreenLight)
+                            if (attachmentSheetTab == "ALL") {
+                                Text(
+                                    text = "View All (${docFiles.size})",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF00A884),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clickable { attachmentSheetTab = "DOCUMENTS" }
+                                )
+                            }
+                        }
+
+                        val displayDocs = if (attachmentSheetTab == "ALL") docFiles.take(3) else docFiles
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            displayDocs.forEach { doc ->
+                                val isSelected = selectedDocumentIds.contains(doc.id)
+
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFF202C33),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            if (isSelected) {
+                                                selectedDocumentIds.remove(doc.id)
+                                            } else {
+                                                selectedDocumentIds.add(doc.id)
+                                            }
+                                        }
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(10.dp)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = doc.accentColor,
+                                            modifier = Modifier.size(38.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = when (doc.extension) {
+                                                        "PDF" -> Icons.Default.PictureAsPdf
+                                                        "ZIP" -> Icons.Default.FolderZip
+                                                        else -> Icons.Default.Description
+                                                    },
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.width(10.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(doc.fileName, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+                                            Text("${doc.fileSize} • ${doc.extension} • ${doc.dateModified}", fontSize = 10.sp, color = Color(0xFF8696A0))
+                                        }
+
+                                        Icon(
+                                            imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                            contentDescription = "Select",
+                                            tint = if (isSelected) WhatsAppGreenPrimary else Color(0xFF8696A0),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Bottom Floating Action & Caption Bar when items are selected
+                    val totalSelected = selectedGalleryItemIds.size + selectedDocumentIds.size
+                    if (totalSelected > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF1F2C34),
+                            shadowElevation = 6.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = attachmentCaption,
+                                    onValueChange = { attachmentCaption = it },
+                                    placeholder = { Text("Add caption to selected media...", fontSize = 12.sp, color = Color(0xFF8696A0)) },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = WhatsAppGreenPrimary,
+                                        unfocusedBorderColor = Color.Transparent,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Button(
+                                    onClick = {
+                                        selectedGalleryItemIds.forEach { id ->
+                                            val photo = galleryPhotos.find { it.id == id }
+                                            if (photo != null) {
+                                                val captionMsg = if (attachmentCaption.isNotBlank()) attachmentCaption else photo.fileName
+                                                onSendMessage(captionMsg, "IMAGE", 0, photo.fileName, photo.fileSize)
+                                            }
+                                        }
+
+                                        selectedDocumentIds.forEach { id ->
+                                            val doc = docFiles.find { it.id == id }
+                                            if (doc != null) {
+                                                val captionMsg = if (attachmentCaption.isNotBlank()) "$attachmentCaption (${doc.fileName})" else doc.fileName
+                                                onSendMessage(captionMsg, "FILE", 0, doc.fileName, doc.fileSize)
+                                            }
+                                        }
+
+                                        Toast.makeText(context, "Attached $totalSelected item(s) to conversation!", Toast.LENGTH_SHORT).show()
+                                        showAttachmentSheet = false
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppGreenPrimary),
+                                    shape = CircleShape,
+                                    modifier = Modifier.size(46.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.White, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
             }
         }
@@ -1142,3 +1478,23 @@ private fun formatMsgTime(time: Long): String {
     val formatter = SimpleDateFormat("h:mm a", Locale.getDefault())
     return formatter.format(Date(time))
 }
+
+private data class GalleryMediaItem(
+    val id: String,
+    val title: String,
+    val fileName: String,
+    val fileSize: String,
+    val dimensions: String,
+    val primaryColor: Color,
+    val category: String = "Photo"
+)
+
+private data class DocumentAttachmentItem(
+    val id: String,
+    val title: String,
+    val fileName: String,
+    val fileSize: String,
+    val extension: String,
+    val dateModified: String,
+    val accentColor: Color
+)
