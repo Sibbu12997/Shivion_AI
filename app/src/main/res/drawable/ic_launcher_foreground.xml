@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Chat Badge Ring -->
+    <path
+        android:fillColor="#00A884"
+        android:pathData="M54,20 C35.2,20 20,35.2 20,54 C20,60.5 21.8,66.6 25,71.8 L21,87 L36.7,82.9 C41.7,85.6 47.6,87.1 54,87.1 C72.8,87.1 88,71.9 88,53.1 C88,34.3 72.8,20 54,20 Z" />
+    <!-- AI Core Emblem (Large Sparkle) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 C54,42 42,54 30,54 C42,54 54,66 54,78 C54,66 66,54 78,54 C66,54 54,42 54,30 Z" />
+    <!-- Secondary AI Sparkle (Top Right) -->
+    <path
+        android:fillColor="#00F2FE"
+        android:pathData="M70,32 C70,37 65,42 60,42 C65,42 70,47 70,52 C70,47 75,42 80,42 C75,42 70,37 70,32 Z" />
+</vector>

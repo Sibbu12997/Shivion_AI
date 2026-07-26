@@ -1,0 +1,6 @@
+{
+  "name": "Sivion AI",
+  "description": "WhatsApp-style AI workspace chat with specialized work assistants, multi-AI group chats, encrypted voice messaging, custom wallpapers, group video calls, and cloud sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
